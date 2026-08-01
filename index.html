@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在线文本信箱</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #f7f2e9;
+      color: #333;
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      line-height: 2;
+      font-size: 18px;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 720px;
+      margin: 40px auto;
+      background: #ffffff;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    }
+    h1 {
+      text-align: center;
+      font-size: 24px;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .update-time {
+      text-align: center;
+      color: #999;
+      font-size: 14px;
+      margin-bottom: 30px;
+    }
+    .password-box {
+      text-align: center;
+      margin: 60px 0;
+    }
+    .password-box input {
+      padding: 10px 14px;
+      width: 260px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 16px;
+      outline: none;
+    }
+    .password-box button {
+      padding: 10px 22px;
+      border: none;
+      background-color: #8b5a2b;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-left: 8px;
+    }
+    .content-view {
+      white-space: pre-wrap;
+      text-indent: 2em;
+      text-align: justify;
+    }
+    .edit-area {
+      display: none;
+    }
+    textarea {
+      width: 100%;
+      min-height: 360px;
+      padding: 16px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      line-height: 1.8;
+      resize: vertical;
+      font-family: inherit;
+      outline: none;
+    }
+    .edit-bar {
+      text-align: right;
+      margin-top: 15px;
+    }
+    .edit-bar button {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+      margin-left: 8px;
+    }
+    .btn-save {
+      background-color: #8b5a2b;
+      color: #fff;
+    }
+    .btn-exit {
+      background-color: #999;
+      color: #fff;
+    }
+    .admin-btn {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      padding: 8px 16px;
+      background-color: #8b5a2b;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .hidden {
+      display: none !important;
+    }
+    @media (max-width: 600px) {
+      .container {
+        padding: 24px 16px;
+        margin: 20px auto;
+      }
+      body {
+        font-size: 17px;
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 id="pageTitle">在线文本信箱</h1>
+    <div class="update-time" id="updateTime"></div>
+
+    <!-- 密码输入区 -->
+    <div id="passwordSection" class="password-box">
+      <input type="password" id="viewPassword" placeholder="请输入查看密码">
+      <button onclick="viewContent()">进入阅读</button>
+    </div>
+
+    <!-- 阅读区 -->
+    <div id="contentSection" class="hidden">
+      <div class="content-view" id="contentText"></div>
+    </div>
+
+    <!-- 编辑区 -->
+    <div id="editSection" class="edit-area">
+      <textarea id="editText" placeholder="在此编辑内容..."></textarea>
+      <div class="edit-bar">
+        <button class="btn-save" onclick="saveContent()">保存更新</button>
+        <button class="btn-exit" onclick="exitEdit()">退出编辑</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="admin-btn" onclick="adminLogin()">管理员</button>
+
+  <script>
+    let currentData = null;
+
+    // 回车提交密码
+    document.getElementById('viewPassword').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') viewContent();
+    });
+
+    // 查看内容
+    async function viewContent() {
+      const pwd = document.getElementById('viewPassword').value.trim();
+      if (!pwd) {
+        alert('请输入查看密码');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd })
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          currentData = result.data;
+          renderContent(result.data);
+        } else {
+          alert(result.message || '密码错误');
+        }
+      } catch (e) {
+        alert('网络错误，请刷新重试');
+      }
+    }
+
+    // 渲染内容
+    function renderContent(data) {
+      document.getElementById('passwordSection').classList.add('hidden');
+      document.getElementById('editSection').classList.add('hidden');
+      document.getElementById('contentSection').classList.remove('hidden');
+
+      document.getElementById('pageTitle').textContent = data.title || '在线文本信箱';
+      document.getElementById('updateTime').textContent = data.updateTime ? '最后更新：' + data.updateTime : '';
+      document.getElementById('contentText').textContent = data.content || '';
+      document.title = data.title || '在线文本信箱';
+    }
+
+    // 管理员登录
+    function adminLogin() {
+      const pwd = prompt('请输入管理员密码：');
+      if (!pwd) return;
+
+      document.getElementById('passwordSection').classList.add('hidden');
+      document.getElementById('contentSection').classList.add('hidden');
+      document.getElementById('editSection').style.display = 'block';
+
+      // 填充已有内容
+      if (currentData) {
+        document.getElementById('editText').value = currentData.content || '';
+      } else {
+        fetch('/api/content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd })
+        }).then(res => res.json()).then(result => {
+          if (result.success) {
+            currentData = result.data;
+            document.getElementById('editText').value = result.data.content || '';
+          }
+        });
+      }
+
+      window._adminPwd = pwd;
+    }
+
+    // 保存内容
+    async function saveContent() {
+      const content = document.getElementById('editText').value;
+      const adminPwd = window._adminPwd;
+
+      if (!adminPwd) {
+        alert('请先登录管理员');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            adminPassword: adminPwd,
+            content: content
+          })
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          alert('保存成功！');
+          location.reload();
+        } else {
+          alert(result.message || '保存失败');
+        }
+      } catch (e) {
+        alert('网络错误，保存失败');
+      }
+    }
+
+    // 退出编辑
+    function exitEdit() {
+      location.reload();
+    }
+  </script>
+</body>
+</html>
